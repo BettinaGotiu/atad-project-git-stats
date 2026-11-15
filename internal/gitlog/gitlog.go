@@ -63,7 +63,7 @@ func Read(ctx context.Context, repo, revision string, visit func(Commit)) error 
 		return ctx.Err()
 	}
 	switch {
-	case errors.As(err, &exit) && revision == "":
+	case errors.As(err, &exit) && exit.ExitCode() == 1 && revision == "":
 		return nil // An unborn HEAD has no history.
 	case errors.As(err, &exit):
 		return ErrRevision
@@ -71,7 +71,7 @@ func Read(ctx context.Context, repo, revision string, visit func(Commit)) error 
 		return err
 	}
 
-	cmd := command(ctx, repo, "log", "--format=%x00%an%x00%ae%x00%at%x00%P",
+	cmd := command(ctx, repo, "log", "--topo-order", "--format=%x00%an%x00%ae%x00%at%x00%P",
 		"--numstat", "-z", "--root", "--diff-merges=off", "--no-renames",
 		"--no-ext-diff", "--no-textconv", "--no-notes", "--no-show-signature", "--no-color",
 		strings.TrimSpace(string(resolved)), "--")
