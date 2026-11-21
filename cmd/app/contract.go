@@ -9,7 +9,7 @@ import (
 	"atad-project/internal/version"
 )
 
-func contractRoutes(started time.Time) *http.ServeMux {
+func contractRoutes(started time.Time, reset func()) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -31,6 +31,7 @@ func contractRoutes(started time.Time) *http.ServeMux {
 </body></html>`)
 	})
 	mux.HandleFunc("POST /reset", func(w http.ResponseWriter, r *http.Request) {
+		reset()
 		w.WriteHeader(http.StatusNoContent)
 	})
 	return mux

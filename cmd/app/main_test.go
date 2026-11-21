@@ -23,7 +23,7 @@ func TestVersionReportsContractFields(t *testing.T) {
 }
 
 func TestContractRoutes(t *testing.T) {
-	mux := contractRoutes(time.Now().Add(-2 * time.Second))
+	mux := contractRoutes(time.Now().Add(-2*time.Second), func() {})
 	for _, test := range []struct {
 		method, path, content string
 		status                int

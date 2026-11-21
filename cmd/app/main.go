@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"atad-project/internal/jobs"
+	"atad-project/internal/stats"
 	"atad-project/internal/version"
 )
 
@@ -28,12 +30,18 @@ func run() error {
 		}
 	}
 
+	aliases, err := stats.LoadAliases(os.Getenv("GIT_STATS_ALIASES"))
+	if err != nil {
+		return fmt.Errorf("load identities: %w", err)
+	}
+	service := service{root: os.Getenv("GIT_STATS_ROOT"), jobs: jobs.New(aliases)}
+	defer service.jobs.Reset()
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	server := &http.Server{
 		Addr:         ":8080",
-		Handler:      contractRoutes(time.Now()),
+		Handler:      service.routes(),
 		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 6 * time.Minute,
 		IdleTimeout:  60 * time.Second,
 	}
 
