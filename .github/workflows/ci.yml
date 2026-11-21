@@ -1,0 +1,63 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache: false
+      - run: go vet ./...
+      - run: |
+          mkdir -p coverage
+          go test -race -coverprofile=coverage/coverage.out ./...
+          go tool cover -func=coverage/coverage.out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      IMAGE: ghcr.io/bettinagotiu/atad-project-git-stats
+      VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.1-dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and check the service
+        run: |
+          docker build --build-arg COMMIT="$GITHUB_SHA" --build-arg VERSION="$VERSION" \
+            --build-arg BUILT_AT="$(date -u +%FT%TZ)" -t "$IMAGE:$VERSION" .
+          docker run --rm "$IMAGE:$VERSION" --version | jq -e --arg sha "$GITHUB_SHA" '.commit == $sha'
+          docker run -d --name stats -p 8080:8080 -v "$PWD:/repos/sample:ro" "$IMAGE:$VERSION"
+          curl -fsS --retry 10 --retry-connrefused http://localhost:8080/health | jq -e '.status == "ok"'
+          curl -fsS 'http://localhost:8080/stats?repo=sample' | jq -e '.total_commits > 0'
+      - uses: docker/login-action@v3
+        if: github.event_name == 'push'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish image
+        if: github.event_name == 'push'
+        run: |
+          docker push "$IMAGE:$VERSION"
+          docker tag "$IMAGE:$VERSION" "$IMAGE:latest"
+          docker push "$IMAGE:latest"
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release view "$VERSION" || gh release create "$VERSION" --verify-tag --title "$VERSION" --generate-notes
+

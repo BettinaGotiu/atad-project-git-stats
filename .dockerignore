@@ -1,0 +1,10 @@
+.git
+.github
+docs
+coverage
+*.md
+*.exe
+.env
+*.pem
+*.key
+
