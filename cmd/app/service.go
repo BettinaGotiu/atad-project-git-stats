@@ -18,6 +18,10 @@ type service struct {
 func (s service) routes() *http.ServeMux {
 	mux := contractRoutes(time.Now(), s.jobs.Reset)
 	mux.HandleFunc("GET /stats", s.liveStats)
+	mux.HandleFunc("POST /repositories", s.createJob)
+	mux.HandleFunc("GET /repositories/{id}", s.jobReport)
+	mux.HandleFunc("GET /repositories/{id}/{view}", s.jobReport)
+	mux.HandleFunc("PUT /identities", s.identities)
 	return mux
 }
 
